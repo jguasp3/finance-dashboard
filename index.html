@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Finance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f4f0;
+    --bg3: #eeecea;
+    --text: #1a1a18;
+    --text2: #5f5e5a;
+    --text3: #9c9a92;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --r-md: 8px;
+    --r-lg: 12px;
+    --green: #3B6D11; --green-light: #EAF3DE; --green-mid: #639922;
+    --amber: #BA7517; --amber-light: #FAEEDA; --amber-mid: #EF9F27;
+    --red: #A32D2D; --red-light: #FCEBEB; --red-mid: #E24B4A;
+    --blue: #185FA5; --blue-light: #E6F1FB; --blue-mid: #378ADD;
+    --teal: #0F6E56; --teal-light: #E1F5EE; --teal-mid: #1D9E75;
+    --purple: #534AB7; --purple-light: #EEEDFE; --purple-mid: #7F77DD;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+      --text: #e8e6de; --text2: #a8a69e; --text3: #6e6c66;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+      --green-light: #1a2e0a; --green: #8abe4a; --green-mid: #639922;
+      --amber-light: #2e2008; --amber: #e8a030; --amber-mid: #EF9F27;
+      --red-light: #2e0f0f; --red: #e86060; --red-mid: #E24B4A;
+      --blue-light: #0c1e35; --blue: #5a9de0; --blue-mid: #378ADD;
+      --teal-light: #062018; --teal: #2abf90; --teal-mid: #1D9E75;
+      --purple-light: #1a1840; --purple: #9b96e8; --purple-mid: #7F77DD;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg2);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+  .logo span { color: var(--green-mid); }
+  .header-date { font-size: 12px; color: var(--text3); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 2px; margin-bottom: 2rem; background: var(--bg3); border-radius: var(--r-lg); padding: 4px; }
+  .tab { flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 400; color: var(--text2); cursor: pointer; border: none; background: none; border-radius: var(--r-md); transition: all .15s; text-align: center; }
+  .tab.active { background: var(--bg); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .tab:hover:not(.active) { color: var(--text); }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── SECTION TITLE ── */
+  .section-title { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+  /* ── METRIC CARDS ── */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .metric { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--r-md); padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 500; color: var(--text); line-height: 1.2; }
+  .metric-sub { font-size: 11px; margin-top: 3px; }
+  .pos { color: var(--green-mid); } .neg { color: var(--red-mid); } .neu { color: var(--amber-mid); }
+
+  /* ── CARDS ── */
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 1.5rem; }
+  .card-pad { padding: 16px; }
+
+  /* ── GOALS GRID ── */
+  .goals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .goal-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 16px; }
+  .goal-name { font-size: 14px; font-weight: 500; color: var(--text); }
+  .goal-type { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .goal-badge { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 999px; }
+  .bar-track { background: var(--bg3); border-radius: 999px; height: 6px; overflow: hidden; margin: 8px 0 4px; }
+  .bar-fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
+  .goal-edit-btn { background: none; border: none; cursor: pointer; font-size: 11px; color: var(--text3); padding: 0; font-family: inherit; }
+  .goal-edit-btn:hover { color: var(--text); }
+
+  /* ── ADD GOAL FORM ── */
+  .add-goal-form { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 16px; margin-bottom: 1.5rem; display: none; }
+  .add-goal-form.open { display: block; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-label { font-size: 11px; color: var(--text2); }
+  .form-input { background: var(--bg); border: 0.5px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 13px; color: var(--text); font-family: inherit; transition: border-color .15s; }
+  .form-input:focus { outline: none; border-color: var(--border2); }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .btn-primary { background: var(--text); color: var(--bg); border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 500; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-ghost { background: none; border: 0.5px solid var(--border2); border-radius: 6px; padding: 8px 18px; font-size: 13px; cursor: pointer; color: var(--text2); font-family: inherit; }
+  .btn-ghost:hover { background: var(--bg3); }
+  .add-btn { background: none; border: 0.5px solid var(--border2); border-radius: 6px; padding: 7px 14px; font-size: 12px; cursor: pointer; color: var(--text2); font-family: inherit; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 1rem; transition: background .15s; }
+  .add-btn:hover { background: var(--bg3); }
+
+  /* ── BUDGET TABLE ── */
+  .budget-row { display: grid; grid-template-columns: 1.2fr 110px 110px 90px 70px; align-items: center; padding: 10px 16px; border-bottom: 0.5px solid var(--border); gap: 8px; }
+  .budget-row:last-child { border-bottom: none; }
+  .budget-header { font-size: 11px; font-weight: 500; color: var(--text2); background: var(--bg2); }
+  .budget-category { font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .budget-input { width: 100%; background: var(--bg2); border: 0.5px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px; color: var(--text); font-family: inherit; text-align: right; }
+  .budget-input:focus { outline: none; border-color: var(--border2); }
+  .budget-mini-bar { height: 4px; border-radius: 2px; background: var(--bg3); overflow: hidden; }
+  .budget-mini-fill { height: 100%; border-radius: 2px; }
+  .budget-status { font-size: 11px; font-weight: 500; text-align: right; }
+
+  /* ── INCOME ROW ── */
+  .income-section { background: var(--green-light); border-radius: var(--r-md); padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .income-label { font-size: 13px; font-weight: 500; color: var(--green); }
+  .income-input { width: 130px; background: rgba(255,255,255,0.5); border: 0.5px solid rgba(59,109,17,0.3); border-radius: 6px; padding: 6px 10px; font-size: 14px; font-weight: 500; color: var(--green); font-family: inherit; text-align: right; }
+  .income-input:focus { outline: none; }
+
+  /* ── SURPLUS BANNER ── */
+  .surplus-banner { border-radius: var(--r-md); padding: 10px 16px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; font-size: 13px; flex-wrap: wrap; gap: 6px; }
+
+  /* ── CHART ── */
+  .chart-wrap { position: relative; width: 100%; height: 260px; margin-bottom: 1.5rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; font-size: 12px; color: var(--text2); }
+  .leg-item { display: flex; align-items: center; gap: 5px; }
+  .leg-sq { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── MISC ── */
+  .milestone-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .milestone-row:last-child { border-bottom: none; }
+
+  /* ── TOGGLE ── */
+  .toggle-track { position: relative; width: 32px; height: 18px; background: var(--border2); border-radius: 9px; transition: background .2s; display: inline-block; cursor: pointer; }
+  .toggle-track.on { background: var(--green-mid); }
+  .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: white; border-radius: 50%; transition: transform .2s; pointer-events: none; }
+  .toggle-track.on .toggle-thumb { transform: translateX(14px); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .container { padding: 1rem; }
+    .budget-row { grid-template-columns: 1fr 85px 70px; }
+    .budget-row > *:nth-child(4), .budget-row > *:nth-child(5) { display: none; }
+    .form-row { grid-template-columns: 1fr; }
+    .header { padding: 0 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">my<span>finance</span></div>
+  <div class="header-date" id="header-date"></div>
+</header>
+
+<div class="container">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab" onclick="switchTab('budget',this)">Budget</button>
+    <button class="tab" onclick="switchTab('goals',this)">Goals</button>
+    <button class="tab" onclick="switchTab('projections',this)">Projections</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div id="tab-overview" class="view active">
+    <div class="metrics" id="overview-metrics"></div>
+    <p class="section-title">Spending vs budget</p>
+    <div class="chart-wrap"><canvas id="overview-chart"></canvas></div>
+    <p class="section-title">Goal progress</p>
+    <div id="mini-goals"></div>
+    <p class="section-title">Budget health</p>
+    <div id="budget-health"></div>
+  </div>
+
+  <!-- BUDGET -->
+  <div id="tab-budget" class="view">
+    <div class="income-section">
+      <span class="income-label">Monthly take-home income</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:14px;font-weight:500;color:var(--green)">$</span>
+        <input class="income-input" id="income-val" type="number" value="5200" oninput="recalc('budget')">
+      </div>
+    </div>
+    <div class="surplus-banner" id="surplus-banner"></div>
+    <p class="section-title">Edit your budget & actual spending</p>
+    <div class="card" id="budget-table"></div>
+  </div>
+
+  <!-- GOALS -->
+  <div id="tab-goals" class="view">
+    <button class="add-btn" onclick="toggleForm()">+ Add goal</button>
+    <div class="add-goal-form" id="goal-form">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Goal name</label><input class="form-input" id="f-name" placeholder="e.g. Car down payment"></div>
+        <div class="form-group"><label class="form-label">Type</label>
+          <select class="form-input" id="f-type">
+            <option value="debt">Pay off debt</option>
+            <option value="emergency">Emergency fund</option>
+            <option value="purchase">Big purchase</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Target amount ($)</label><input class="form-input" id="f-target" type="number" placeholder="10000"></div>
+        <div class="form-group"><label class="form-label">Already saved ($)</label><input class="form-input" id="f-saved" type="number" placeholder="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Monthly contribution ($)</label><input class="form-input" id="f-monthly" type="number" placeholder="500"></div>
+        <div class="form-group"><label class="form-label">Priority</label>
+          <select class="form-input" id="f-priority">
+            <option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-ghost" onclick="toggleForm()">Cancel</button>
+        <button class="btn-primary" onclick="addGoal()">Add goal</button>
+      </div>
+    </div>
+    <div class="goals-grid" id="goals-grid"></div>
+  </div>
+
+  <!-- PROJECTIONS -->
+  <div id="tab-projections" class="view">
+    <div class="metrics" id="proj-metrics"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;font-size:13px;color:var(--text2)">
+      <label for="proj-months">Months ahead</label>
+      <input type="range" min="6" max="60" value="24" id="proj-months" step="6" oninput="updateProjections()" style="flex:1">
+      <span id="proj-months-label" style="min-width:40px;font-weight:500;color:var(--text)">24 mo</span>
+    </div>
+    <div class="legend" id="proj-legend"></div>
+    <div class="chart-wrap"><canvas id="proj-chart"></canvas></div>
+    <div id="proj-milestones"></div>
+  </div>
+
+</div>
+
+<script>
+// ── PERSISTENCE ───────────────────────────────────────────────────────
+const STORAGE_KEY = 'myfinance_v1';
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ income: income(), cats, goals, nextId }));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (s.income) document.getElementById('income-val').value = s.income;
+    if (s.cats && s.cats.length === cats.length) s.cats.forEach((c,i) => { cats[i].budget = c.budget; cats[i].spent = c.spent; });
+    if (s.goals) { goals.length = 0; s.goals.forEach(g => goals.push(g)); }
+    if (s.nextId) nextId = s.nextId;
+    return true;
+  } catch(e) { return false; }
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────
+const cats = [
+  { name:'Housing',       color:'#378ADD', budget:1500, spent:1500 },
+  { name:'Food',          color:'#639922', budget:600,  spent:520  },
+  { name:'Transport',     color:'#BA7517', budget:400,  spent:460  },
+  { name:'Utilities',     color:'#7F77DD', budget:200,  spent:185  },
+  { name:'Healthcare',    color:'#1D9E75', budget:150,  spent:90   },
+  { name:'Entertainment', color:'#D85A30', budget:200,  spent:280  },
+  { name:'Clothing',      color:'#D4537E', budget:100,  spent:60   },
+  { name:'Savings',       color:'#3B6D11', budget:700,  spent:700  },
+];
+
+const goals = [
+  { id:1, name:'Credit card debt', type:'debt',      target:8000,  saved:2400, monthly:400,  priority:'high'   },
+  { id:2, name:'Emergency fund',   type:'emergency', target:15000, saved:3200, monthly:250,  priority:'high'   },
+  { id:3, name:'Vacation fund',    type:'purchase',  target:4000,  saved:800,  monthly:200,  priority:'medium' },
+];
+let nextId = 4;
+
+const typeColors = {
+  debt:      ['#E24B4A','#FCEBEB','#A32D2D'],
+  emergency: ['#378ADD','#E6F1FB','#185FA5'],
+  purchase:  ['#EF9F27','#FAEEDA','#BA7517'],
+};
+const goalColors = ['#378ADD','#E24B4A','#EF9F27','#1D9E75','#7F77DD','#D85A30'];
+
+// ── UTILS ─────────────────────────────────────────────────────────────
+function income()      { return parseFloat(document.getElementById('income-val').value) || 5200; }
+function totalBudget() { return cats.reduce((s,c) => s + c.budget, 0); }
+function totalSpent()  { return cats.reduce((s,c) => s + c.spent,  0); }
+function surplus()     { return income() - totalSpent(); }
+function fmt(n)        { return '$' + Math.round(n).toLocaleString(); }
+function pct(a,b)      { return b ? Math.min(100, Math.round(a / b * 100)) : 0; }
+function monthsLeft(g) { const r = g.target - g.saved; return g.monthly > 0 ? Math.ceil(r / g.monthly) : Infinity; }
+function etaStr(g) {
+  const m = monthsLeft(g);
+  if (!isFinite(m)) return 'No contribution set';
+  if (m <= 0) return 'Goal reached!';
+  const d = new Date(); d.setMonth(d.getMonth() + m);
+  return d.toLocaleDateString('en-US', { month:'short', year:'numeric' });
+}
+function isDark() { return matchMedia('(prefers-color-scheme: dark)').matches; }
+function chartTextColor() { return isDark() ? '#a8a69e' : '#5f5e5a'; }
+function chartGridColor() { return isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'; }
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────
+function renderOverview() {
+  const sp = totalSpent(), inc = income(), sur = surplus();
+  document.getElementById('overview-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Monthly income</div><div class="metric-value">${fmt(inc)}</div></div>
+    <div class="metric"><div class="metric-label">Total spent</div><div class="metric-value">${fmt(sp)}</div><div class="metric-sub ${sp>inc?'neg':'pos'}">${pct(sp,inc)}% of income</div></div>
+    <div class="metric"><div class="metric-label">Surplus / deficit</div><div class="metric-value ${sur>=0?'pos':'neg'}">${fmt(sur)}</div></div>
+    <div class="metric"><div class="metric-label">Goal contributions</div><div class="metric-value">${fmt(goals.reduce((s,g)=>s+g.monthly,0))}/mo</div></div>
+  `;
+
+  document.getElementById('mini-goals').innerHTML = goals.map(g => {
+    const [c] = typeColors[g.type];
+    const p = pct(g.saved, g.target);
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="font-weight:500">${g.name}</span>
+        <span style="color:var(--text2)">${fmt(g.saved)} / ${fmt(g.target)} · ${p}%</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${c}"></div></div>
+    </div>`;
+  }).join('');
+
+  const over  = cats.filter(c => c.spent > c.budget);
+  const under = cats.filter(c => c.spent <= c.budget);
+  document.getElementById('budget-health').innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:0.5rem">
+      <div style="background:var(--green-light);border-radius:6px;padding:8px 14px;font-size:12px;color:var(--green)">
+        <span style="font-weight:500">${under.length}</span> categories on track
+      </div>
+      <div style="background:${over.length?'var(--red-light)':'var(--green-light)'};border-radius:6px;padding:8px 14px;font-size:12px;color:${over.length?'var(--red)':'var(--green)'}">
+        <span style="font-weight:500">${over.length}</span> categories over budget
+      </div>
+    </div>
+    ${over.map(c=>`<div style="font-size:12px;color:var(--red-mid);margin-bottom:2px">${c.name}: over by ${fmt(c.spent-c.budget)}</div>`).join('')}
+  `;
+
+  renderOverviewChart();
+}
+
+let ovChartInst;
+function renderOverviewChart() {
+  if (ovChartInst) { ovChartInst.destroy(); ovChartInst = null; }
+  ovChartInst = new Chart(document.getElementById('overview-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: cats.map(c => c.name),
+      datasets: [
+        { label:'Budget', data:cats.map(c=>c.budget), backgroundColor:cats.map(c=>c.color+'33'), borderColor:cats.map(c=>c.color), borderWidth:1, borderRadius:4 },
+        { label:'Spent',  data:cats.map(c=>c.spent),  backgroundColor:cats.map(c=>c.color+'bb'), borderColor:cats.map(c=>c.color), borderWidth:1, borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{ display:false } },
+      scales: {
+        x: { ticks:{ color:chartTextColor(), font:{size:11}, maxRotation:35, autoSkip:false }, grid:{ display:false } },
+        y: { ticks:{ color:chartTextColor(), font:{size:11}, callback:v=>'$'+v.toLocaleString() }, grid:{ color:chartGridColor() } }
+      }
+    }
+  });
+}
+
+// ── BUDGET ────────────────────────────────────────────────────────────
+function renderBudget() {
+  const sur = surplus();
+  const banner = document.getElementById('surplus-banner');
+  if (sur >= 0) {
+    banner.style.background = 'var(--green-light)';
+    banner.innerHTML = `<span style="color:var(--green);font-weight:500">You have ${fmt(sur)} left to allocate</span><span style="font-size:11px;color:var(--green-mid)">Consider boosting a goal contribution</span>`;
+  } else {
+    banner.style.background = 'var(--red-light)';
+    banner.innerHTML = `<span style="color:var(--red);font-weight:500">Over budget by ${fmt(Math.abs(sur))}</span><span style="font-size:11px;color:var(--red-mid)">Trim a category to get back on track</span>`;
+  }
+
+  document.getElementById('budget-table').innerHTML = `
+    <div class="budget-row budget-header">
+      <span>Category</span><span style="text-align:right">Budget</span><span style="text-align:right">Spent</span><span>Progress</span><span style="text-align:right">Status</span>
+    </div>
+    ${cats.map((c,i) => {
+      const p = pct(c.spent, c.budget);
+      const over = c.spent > c.budget;
+      const fc = over ? 'var(--red-mid)' : p > 80 ? 'var(--amber-mid)' : 'var(--green-mid)';
+      const statusTxt = over ? `+${fmt(c.spent-c.budget)}` : `-${fmt(c.budget-c.spent)}`;
+      return `<div class="budget-row">
+        <span class="budget-category"><span class="cat-dot" style="background:${c.color}"></span>${c.name}</span>
+        <input class="budget-input" type="number" value="${c.budget}" onchange="updateBudget(${i},this.value)">
+        <input class="budget-input" type="number" value="${c.spent}" onchange="updateSpent(${i},this.value)">
+        <div><div class="budget-mini-bar"><div class="budget-mini-fill" style="width:${Math.min(100,p)}%;background:${fc}"></div></div></div>
+        <span class="budget-status ${over?'neg':'pos'}">${statusTxt}</span>
+      </div>`;
+    }).join('')}
+    <div class="budget-row" style="background:var(--bg2);font-weight:500">
+      <span style="font-size:13px">Total</span>
+      <span style="font-size:13px;text-align:right">${fmt(totalBudget())}</span>
+      <span style="font-size:13px;text-align:right">${fmt(totalSpent())}</span>
+      <span></span>
+      <span class="budget-status ${surplus()>=0?'pos':'neg'}">${fmt(Math.abs(surplus()))}</span>
+    </div>
+  `;
+}
+
+function updateBudget(i, v) { cats[i].budget = parseFloat(v)||0; saveState(); recalc('budget'); }
+function updateSpent(i, v)  { cats[i].spent  = parseFloat(v)||0; saveState(); recalc('budget'); }
+
+// ── GOALS ─────────────────────────────────────────────────────────────
+function renderGoals() {
+  document.getElementById('goals-grid').innerHTML = goals.map(g => {
+    const [c, cb, ct] = typeColors[g.type];
+    const p = pct(g.saved, g.target);
+    const typeLabel = { debt:'Debt payoff', emergency:'Emergency fund', purchase:'Big purchase' }[g.type];
+    return `<div class="goal-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div><div class="goal-name">${g.name}</div><div class="goal-type">${typeLabel}</div></div>
+        <span class="goal-badge" style="background:${cb};color:${ct}">${g.priority}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-top:8px">
+        <span>Saved: <strong style="color:var(--text)">${fmt(g.saved)}</strong></span>
+        <span>Target: ${fmt(g.target)}</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${c}"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:8px">
+        <span>${p}% complete</span><span>${fmt(g.target-g.saved)} left</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)">
+        <span>${fmt(g.monthly)}/mo</span>
+        <span style="color:${c};font-weight:500">${etaStr(g)}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="goal-edit-btn" onclick="addSavings(${g.id})">+ Log savings</button>
+        <button class="goal-edit-btn" style="margin-left:auto" onclick="removeGoal(${g.id})">Remove</button>
+      </div>
+    </div>`;
+  }).join('') || `<div style="color:var(--text3);font-size:13px;padding:1rem 0">No goals yet — add one above.</div>`;
+}
+
+function toggleForm() { document.getElementById('goal-form').classList.toggle('open'); }
+
+function addGoal() {
+  const name     = document.getElementById('f-name').value.trim();
+  const type     = document.getElementById('f-type').value;
+  const target   = parseFloat(document.getElementById('f-target').value) || 0;
+  const saved    = parseFloat(document.getElementById('f-saved').value)  || 0;
+  const monthly  = parseFloat(document.getElementById('f-monthly').value)|| 0;
+  const priority = document.getElementById('f-priority').value;
+  if (!name || !target) { alert('Please enter a name and target amount.'); return; }
+  goals.push({ id: nextId++, name, type, target, saved, monthly, priority });
+  toggleForm();
+  ['f-name','f-target','f-saved','f-monthly'].forEach(id => document.getElementById(id).value = '');
+  saveState(); renderGoals(); renderOverview(); updateProjections();
+}
+
+function removeGoal(id) {
+  if (!confirm('Remove this goal?')) return;
+  const i = goals.findIndex(g => g.id === id);
+  if (i >= 0) { goals.splice(i, 1); saveState(); renderGoals(); renderOverview(); updateProjections(); }
+}
+
+function addSavings(id) {
+  const g = goals.find(x => x.id === id);
+  if (!g) return;
+  const amt = parseFloat(prompt(`How much did you save toward "${g.name}"? ($)`));
+  if (!isNaN(amt) && amt > 0) {
+    g.saved = Math.min(g.target, g.saved + amt);
+    saveState(); renderGoals(); renderOverview(); updateProjections();
+  }
+}
+
+// ── PROJECTIONS ───────────────────────────────────────────────────────
+let projChartInst;
+function updateProjections() {
+  const months = parseInt(document.getElementById('proj-months').value);
+  document.getElementById('proj-months-label').textContent = months + ' mo';
+
+  const labels = Array.from({ length: months + 1 }, (_, i) => {
+    if (i === 0) return 'Now';
+    const d = new Date(); d.setMonth(d.getMonth() + i);
+    return i % 6 === 0 ? d.toLocaleDateString('en-US', { month:'short', year:'2-digit' }) : '';
+  });
+
+  const datasets = goals.map((g, i) => ({
+    label: g.name,
+    data: Array.from({ length: months + 1 }, (_, m) => Math.min(g.target, Math.round(g.saved + g.monthly * m))),
+    borderColor: goalColors[i % goalColors.length],
+    backgroundColor: goalColors[i % goalColors.length] + '22',
+    borderWidth: 2,
+    tension: 0.35,
+    fill: false,
+    pointRadius: 0,
+    pointHoverRadius: 4,
+  }));
+
+  goals.forEach((g, i) => {
+    datasets.push({
+      label: '',
+      data: Array(months + 1).fill(g.target),
+      borderColor: goalColors[i % goalColors.length],
+      borderWidth: 1,
+      borderDash: [4, 4],
+      pointRadius: 0,
+      fill: false,
+    });
+  });
+
+  if (projChartInst) { projChartInst.destroy(); projChartInst = null; }
+  projChartInst = new Chart(document.getElementById('proj-chart').getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks:{ color:chartTextColor(), font:{size:11}, maxRotation:0, autoSkip:false }, grid:{ display:false } },
+        y: { ticks:{ color:chartTextColor(), font:{size:11}, callback:v=>'$'+v.toLocaleString() }, grid:{ color:chartGridColor() } }
+      }
+    }
+  });
+
+  document.getElementById('proj-legend').innerHTML = goals.map((g, i) =>
+    `<span class="leg-item"><span class="leg-sq" style="background:${goalColors[i%goalColors.length]}"></span>${g.name}</span>`
+  ).join('');
+
+  let milestones = [];
+  goals.forEach(g => {
+    const m = monthsLeft(g);
+    if (isFinite(m) && m <= months) {
+      const d = new Date(); d.setMonth(d.getMonth() + m);
+      milestones.push({ label: g.name, months: m, date: d.toLocaleDateString('en-US', { month:'long', year:'numeric' }) });
+    }
+  });
+  milestones.sort((a, b) => a.months - b.months);
+
+  const totalMo = goals.reduce((s, g) => s + g.monthly, 0);
+  document.getElementById('proj-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Monthly to goals</div><div class="metric-value">${fmt(totalMo)}</div></div>
+    <div class="metric"><div class="metric-label">Earliest milestone</div><div class="metric-value" style="font-size:15px">${milestones[0]?.date || '—'}</div><div class="metric-sub">${milestones[0]?.label || ''}</div></div>
+    <div class="metric"><div class="metric-label">Goals within ${months} mo</div><div class="metric-value">${milestones.length} / ${goals.length}</div></div>
+  `;
+
+  document.getElementById('proj-milestones').innerHTML = milestones.length
+    ? `<p class="section-title" style="margin-top:1rem">Milestones</p>` + milestones.map(m =>
+        `<div class="milestone-row">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--green-mid);flex-shrink:0;display:inline-block"></span>
+          <span style="font-weight:500">${m.label}</span>
+          <span style="color:var(--text2);margin-left:auto">${m.date}</span>
+          <span style="color:var(--green-mid);font-size:11px;margin-left:8px">in ${m.months} mo</span>
+        </div>`).join('')
+    : '';
+}
+
+// ── WIRING ────────────────────────────────────────────────────────────
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'overview')    renderOverview();
+  if (tab === 'budget')      renderBudget();
+  if (tab === 'goals')       renderGoals();
+  if (tab === 'projections') updateProjections();
+}
+
+function recalc(activeTab) {
+  saveState();
+  renderOverview();
+  if (activeTab === 'budget') renderBudget();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+loadState();
+renderOverview();
+</script>
+</body>
+</html>
